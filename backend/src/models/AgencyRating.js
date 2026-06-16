@@ -14,7 +14,6 @@ const agencyRatingSchema = new mongoose.Schema(
 );
 
 agencyRatingSchema.index({ agencyId: 1, createdAt: -1 });
-// One rating per booking — enforced by unique index on bookingId
-agencyRatingSchema.index({ bookingId: 1 }, { unique: true });
+// One rating per booking — enforced by `unique: true` on the bookingId field above
 
 module.exports = mongoose.model('AgencyRating', agencyRatingSchema);

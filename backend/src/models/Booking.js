@@ -52,6 +52,6 @@ const bookingSchema = new mongoose.Schema(
 bookingSchema.index({ agencyId: 1, createdAt: -1 });
 bookingSchema.index({ passengerId: 1, status: 1 });
 bookingSchema.index({ tripId: 1, seatLabel: 1 }, { unique: true });
-bookingSchema.index({ bookingRef: 1 }, { unique: true });
+// bookingRef uniqueness already enforced by `unique: true` on the field above
 
 module.exports = mongoose.model('Booking', bookingSchema);
