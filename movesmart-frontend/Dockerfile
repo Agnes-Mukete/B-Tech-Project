@@ -19,10 +19,16 @@ RUN npm run build
 FROM nginx:stable-alpine
 
 # Copy the compiled static assets from the build stage to Nginx's public folder
-# Note: If your framework uses 'build' instead of 'dist', change 'dist' to 'build' below.
-COPY --from=build /app/dist /usr/share/nginx/html
+# Create React App outputs to 'build', not 'dist'
+COPY --from=build /app/build /usr/share/nginx/html
 
-# Expose port 80 for the web server
+# Use a template so $PORT (injected by Railway at runtime) gets substituted into
+# the actual nginx config before nginx starts. The base nginx image automatically
+# runs envsubst on any *.template file placed in /etc/nginx/templates/.
+COPY nginx.conf /etc/nginx/templates/default.conf.template
+
+# Railway assigns PORT dynamically; default to 80 for local/non-Railway use
+ENV PORT=80
 EXPOSE 80
 
 # Start Nginx
