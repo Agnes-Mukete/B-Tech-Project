@@ -1,0 +1,144 @@
+services:
+
+  # ── MongoDB ─────────────────────────────────────────────────────────
+  movesmart-db:
+    image: mongo:7.0
+    container_name: movesmart-db
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: movesmart
+      MONGO_INITDB_ROOT_PASSWORD: movesmart_secret
+      MONGO_INITDB_DATABASE: movesmart
+    volumes:
+      - mongo_data:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+          
+
+  # ── Node.js REST API ─────────────────────────────────────────────────
+  movesmart-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: movesmart-api
+    restart: unless-stopped
+    depends_on:
+      movesmart-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://movesmart:movesmart_secret@movesmart-db:27017/movesmart?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_jwt_secret_32chars}
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 7d
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      ML_SERVICE_URL: http://movesmart-ml:8000
+      SMTP_HOST: ${SMTP_HOST:-smtp.mailtrap.io}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: noreply@movesmart.cm
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  # ── Python ML microservice ───────────────────────────────────────────
+  movesmart-ml:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    container_name: movesmart-ml
+    restart: unless-stopped
+    environment:
+      API_URL: http://movesmart-api:5000
+      MODEL_DIR: /app/models/registry
+    ports:
+      - "8000:8000"
+    volumes:
+      - ml_models:/app/models/registry
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+# ── movesmart-frontend ─────────────────────
+  movesmart-frontend:
+    build: ./movesmart-frontend
+    container_name: movesmart-frontend
+    ports:
+      - "3000:80" # Maps your laptop's port 3000 to Nginx's internal port 80
+    depends_on:
+      - movesmart-api # Ensures backend spins up first
+    environment:
+      - NODE_ENV=production
+
+
+  # ── Prometheus ───────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.49.0
+    container_name: movesmart-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  # ── Grafana ──────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: movesmart-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+
+volumes:
+  mongo_data:
+  ml_models:
+  grafana_data:

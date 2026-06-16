@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+movesmart-frontend/node_modules/
+
+# Environment variables (contain secrets)
+.env
+.env.local
+.env.*.local
+backend/.env
+movesmart-frontend/.env
+
+# Logs
+backend/logs/
+*.log
+
+# Build output
+movesmart-frontend/build/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+ml/__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
