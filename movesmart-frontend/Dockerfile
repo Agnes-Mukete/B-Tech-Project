@@ -12,6 +12,16 @@ RUN npm ci
 # Copy the rest of your frontend source code
 COPY . .
 
+# CRA bakes REACT_APP_* vars into the JS bundle at build time. Railway's
+# Variables tab only reaches this build stage if declared as ARG here and
+# re-exported as ENV before the build runs.
+ARG REACT_APP_API_URL
+ARG REACT_APP_GOOGLE_CLIENT_ID
+ARG REACT_APP_GOOGLE_MAPS_API_KEY
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID
+ENV REACT_APP_GOOGLE_MAPS_API_KEY=$REACT_APP_GOOGLE_MAPS_API_KEY
+
 # Build the optimized static files (creates a 'dist' or 'build' folder)
 RUN npm run build
 
